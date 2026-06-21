@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>World Cup 2026 — Live Standings & Qualification Tracker</title>
+<meta name="description" content="Always-live FIFA World Cup 2026 group standings with a real-time probability of each team advancing to the next round." />
+<style>
+  :root {
+    --bg: #0a0e1a;
+    --bg-2: #111726;
+    --card: #151b2e;
+    --card-2: #1a2236;
+    --line: #232c45;
+    --text: #e8edf7;
+    --muted: #8a96b3;
+    --green: #2dd4a7;
+    --green-soft: rgba(45, 212, 167, 0.14);
+    --yellow: #f4c050;
+    --red: #ff6b73;
+    --accent: #5b8cff;
+    --shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: radial-gradient(1200px 600px at 50% -10%, #16203a 0%, var(--bg) 55%) fixed;
+    color: var(--text);
+    font-family: "Segoe UI", system-ui, -apple-system, Roboto, Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+  }
+  a { color: var(--accent); }
+
+  header.app {
+    text-align: center;
+    padding: 32px 18px 14px;
+    position: relative;
+  }
+  header.app h1 {
+    margin: 0;
+    font-size: clamp(1.5rem, 3.6vw, 2.5rem);
+    letter-spacing: 0.5px;
+    font-weight: 800;
+  }
+  header.app h1 .trophy { filter: drop-shadow(0 2px 6px rgba(244, 192, 80, 0.5)); }
+  header.app p.sub {
+    margin: 8px 0 0;
+    color: var(--muted);
+    font-size: 0.95rem;
+  }
+
+  .statusbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 18px;
+    align-items: center;
+    justify-content: center;
+    margin: 16px auto 8px;
+    max-width: 1200px;
+    padding: 0 14px;
+    font-size: 0.85rem;
+    color: var(--muted);
+  }
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 6px 13px;
+  }
+  .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--green);
+    box-shadow: 0 0 0 0 rgba(45, 212, 167, 0.6);
+    animation: pulse 2s infinite;
+  }
+  .dot.stale { background: var(--yellow); animation: none; }
+  .dot.err { background: var(--red); animation: none; }
+  @keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(45, 212, 167, 0.5); }
+    70% { box-shadow: 0 0 0 7px rgba(45, 212, 167, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(45, 212, 167, 0); }
+  }
+  button.refresh {
+    background: var(--card-2);
+    color: var(--text);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 6px 14px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    transition: border-color 0.15s, transform 0.1s;
+  }
+  button.refresh:hover { border-color: var(--accent); }
+  button.refresh:active { transform: scale(0.97); }
+  button.refresh:disabled { opacity: 0.5; cursor: default; }
+
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 16px;
+    justify-content: center;
+    margin: 6px auto 18px;
+    font-size: 0.8rem;
+    color: var(--muted);
+  }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .swatch { width: 11px; height: 11px; border-radius: 3px; display: inline-block; }
+
+  main {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 4px 14px 60px;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
+    gap: 18px;
+  }
+  .group {
+    background: linear-gradient(180deg, var(--card) 0%, var(--bg-2) 100%);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: var(--shadow);
+  }
+  .group h2 {
+    margin: 0;
+    padding: 13px 16px;
+    font-size: 1.05rem;
+    letter-spacing: 0.5px;
+    border-bottom: 1px solid var(--line);
+    background: rgba(255, 255, 255, 0.02);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .group h2 .gtag {
+    font-size: 0.68rem;
+    color: var(--muted);
+    font-weight: 500;
+    letter-spacing: 0.3px;
+  }
+  table { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
+  thead th {
+    color: var(--muted);
+    font-weight: 600;
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    padding: 9px 6px;
+    text-align: center;
+    border-bottom: 1px solid var(--line);
+  }
+  thead th.team-h { text-align: left; padding-left: 14px; }
+  tbody td {
+    padding: 9px 6px;
+    text-align: center;
+    border-bottom: 1px solid rgba(35, 44, 69, 0.6);
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  td.team {
+    text-align: left;
+    padding-left: 8px;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    min-width: 0;
+  }
+  td.team .rankno {
+    width: 18px;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+    flex: none;
+    text-align: center;
+  }
+  td.team img {
+    width: 22px; height: 22px;
+    object-fit: contain;
+    border-radius: 3px;
+    background: #fff1;
+    flex: none;
+  }
+  td.team .tname {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-weight: 600;
+  }
+  td.pts { font-weight: 800; }
+  tr.pos-1 td, tr.pos-2 td { box-shadow: inset 3px 0 0 var(--green); }
+  tr.pos-3 td { box-shadow: inset 3px 0 0 var(--yellow); }
+  tr.pos-4 td { box-shadow: inset 3px 0 0 var(--red); }
+
+  .qcell { min-width: 76px; }
+  .qwrap { display: flex; flex-direction: column; gap: 3px; align-items: stretch; }
+  .qnum { font-weight: 800; font-variant-numeric: tabular-nums; font-size: 0.84rem; }
+  .qbar {
+    height: 5px;
+    border-radius: 3px;
+    background: #ffffff10;
+    overflow: hidden;
+  }
+  .qbar > i { display: block; height: 100%; border-radius: 3px; }
+  .qtag {
+    font-size: 0.6rem;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    color: var(--muted);
+  }
+  .qtag.in { color: var(--green); }
+  .qtag.out { color: var(--red); }
+
+  .live-badge {
+    font-size: 0.58rem;
+    background: var(--red);
+    color: #fff;
+    padding: 1px 5px;
+    border-radius: 4px;
+    margin-left: 4px;
+    vertical-align: middle;
+    animation: pulse-red 1.6s infinite;
+  }
+  @keyframes pulse-red { 50% { opacity: 0.55; } }
+
+  .skeleton .group { min-height: 230px; }
+  .loading-msg, .error-msg {
+    text-align: center;
+    color: var(--muted);
+    padding: 40px 14px;
+    font-size: 0.95rem;
+  }
+  .error-msg { color: var(--red); }
+
+  footer.app {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 0 18px 50px;
+    color: var(--muted);
+    font-size: 0.78rem;
+    line-height: 1.6;
+    text-align: center;
+  }
+  footer.app details { margin-top: 10px; }
+  footer.app summary { cursor: pointer; color: var(--accent); }
+  footer.app .method { text-align: left; margin: 10px auto 0; max-width: 680px; }
+  .spin { display: inline-block; animation: spin 0.9s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+  <header class="app">
+    <h1><span class="trophy">🏆</span> World Cup 2026 — Live Tracker</h1>
+    <p class="sub">Group standings &amp; real-time chance of advancing to the Round of 32</p>
+  </header>
+
+  <div class="statusbar">
+    <span class="pill"><span class="dot" id="liveDot"></span><span id="liveLabel">Connecting…</span></span>
+    <span class="pill" id="updatedPill">Updated: —</span>
+    <span class="pill" id="refreshPill">Next refresh in —s</span>
+    <button class="refresh" id="refreshBtn">↻ Refresh now</button>
+  </div>
+
+  <div class="legend">
+    <span><i class="swatch" style="background:var(--green)"></i> Top 2 — advance</span>
+    <span><i class="swatch" style="background:var(--yellow)"></i> 3rd — best 8 advance</span>
+    <span><i class="swatch" style="background:var(--red)"></i> 4th — eliminated</span>
+    <span><b style="color:var(--text)">Qualify%</b> = live simulated chance to reach the next round</span>
+  </div>
+
+  <main>
+    <div id="content" class="loading-msg"><span class="spin">↻</span> Loading live data from the tournament…</div>
+  </main>
+
+  <footer class="app">
+    <div>
+      Live data from the public ESPN sports feed, refreshed automatically. Format: 12 groups of 4 —
+      the top two of every group plus the eight best third-placed teams (32 total) reach the Round of 32.
+    </div>
+    <details>
+      <summary>How is the “Qualify %” calculated?</summary>
+      <div class="method">
+        Every refresh runs a Monte&nbsp;Carlo simulation of the tournament. All matches already played are
+        taken as final; each remaining group match is simulated <span id="simN">10,000</span> times by drawing
+        goals from a Poisson model based on each team's scoring and conceding rate so far (regularised toward
+        the tournament average so teams with few games aren't over-rated). For every simulated tournament the
+        final group tables are computed (points, then goal difference, then goals for), the third-placed teams
+        across all groups are ranked, and the best eight are taken. A team's <b>Qualify %</b> is the share of
+        simulations in which it reaches the Round of 32 — so clinched teams trend to 100% and eliminated teams
+        to 0% on their own. In-progress matches are re-simulated from the current scoreline as reported by the feed.
+      </div>
+    </details>
+  </footer>
+
+<script>
+(function () {
+  "use strict";
+
+  var CONFIG = {
+    STANDINGS_URL: "https://site.api.espn.com/apis/v2/sports/soccer/fifa.world/standings",
+    FIXTURES_URL:  "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?dates=20260611-20260628",
+    REFRESH_MS: 30000,
+    SIM_ITERS: 10000,
+    LEAGUE_AVG: 1.30,   // avg goals per team per match (prior mean)
+    PRIOR_GAMES: 2.0,   // strength of regularisation toward the average
+    ADVANCE_PER_GROUP: 2,
+    BEST_THIRDS: 8
+  };
+
+  var el = function (id) { return document.getElementById(id); };
+  var lastGoodRender = null;
+  var refreshTimer = null, countdownTimer = null, nextRefreshAt = 0;
+
+  // ---------- Data fetching ----------
+  function fetchJSON(url) {
+    return fetch(url, { cache: "no-store" }).then(function (r) {
+      if (!r.ok) throw new Error("HTTP " + r.status + " for " + url);
+      return r.json();
+    });
+  }
+
+  function loadAll() {
+    setStatus("loading");
+    return Promise.all([
+      fetchJSON(CONFIG.STANDINGS_URL),
+      fetchJSON(CONFIG.FIXTURES_URL)
+    ]).then(function (res) {
+      var model = buildModel(res[0], res[1]);
+      simulate(model);
+      render(model);
+      lastGoodRender = model;
+      setStatus(model.hasLive ? "live" : "ok");
+    }).catch(function (err) {
+      console.error(err);
+      if (!lastGoodRender) {
+        el("content").className = "error-msg";
+        el("content").textContent = "Could not load live data: " + err.message +
+          ". The tracker will keep retrying.";
+      }
+      setStatus("err");
+    });
+  }
+
+  // ---------- Model building ----------
+  function statVal(stats, type) {
+    for (var i = 0; i < stats.length; i++) {
+      if (stats[i].type === type) {
+        var v = stats[i].value;
+        return (typeof v === "number") ? v : parseFloat(stats[i].displayValue) || 0;
+      }
+    }
+    return 0;
+  }
+
+  function buildModel(standings, fixtures) {
+    var groups = [];
+    var teamsById = {};
+    var children = standings.children || [];
+
+    children.forEach(function (g) {
+      var entries = (g.standings && g.standings.entries) || [];
+      var teams = entries.map(function (e) {
+        var t = e.team || {};
+        var s = e.stats || [];
+        var logos = t.logos && t.logos.length ? t.logos[0].href : null;
+        var team = {
+          id: String(t.id),
+          name: t.displayName || t.name || "—",
+          abbr: t.abbreviation || "",
+          logo: logos,
+          gp: statVal(s, "gamesplayed"),
+          w: statVal(s, "wins"),
+          d: statVal(s, "ties"),
+          l: statVal(s, "losses"),
+          gf: statVal(s, "pointsfor"),
+          ga: statVal(s, "pointsagainst"),
+          pts: statVal(s, "points"),
+          gd: statVal(s, "pointdifferential"),
+          rank: statVal(s, "rank"),
+          note: e.note || null,
+          group: g.name,
+          qualify: 0
+        };
+        teamsById[team.id] = team;
+        return team;
+      });
+      groups.push({ name: g.name, teams: teams });
+    });
+
+    // Remaining (and live) group matches, mapped to groups via shared membership.
+    var remaining = [];
+    var hasLive = false;
+    var events = (fixtures && fixtures.events) || [];
+    events.forEach(function (ev) {
+      var comp = ev.competitions && ev.competitions[0];
+      if (!comp) return;
+      var cs = comp.competitors || [];
+      var home = cs.filter(function (c) { return c.homeAway === "home"; })[0] || cs[0];
+      var away = cs.filter(function (c) { return c.homeAway === "away"; })[0] || cs[1];
+      if (!home || !away) return;
+      var hid = String(home.team.id), aid = String(away.team.id);
+      var ht = teamsById[hid], at = teamsById[aid];
+      if (!ht || !at || ht.group !== at.group) return; // only intra-group matches
+
+      var stype = (comp.status && comp.status.type) || {};
+      var state = stype.state; // pre | in | post
+      if (state === "post" || stype.completed) return; // already in the standings totals
+
+      var liveH = 0, liveA = 0;
+      if (state === "in") {
+        hasLive = true;
+        liveH = parseInt(home.score, 10) || 0;
+        liveA = parseInt(away.score, 10) || 0;
+      }
+      remaining.push({ home: hid, away: aid, liveH: liveH, liveA: liveA });
+    });
+
+    return {
+      groups: groups,
+      teamsById: teamsById,
+      remaining: remaining,
+      hasLive: hasLive,
+      updated: new Date()
+    };
+  }
+
+  // ---------- Monte Carlo simulation ----------
+  function poisson(lambda) {
+    if (lambda <= 0) return 0;
+    var L = Math.exp(-lambda), k = 0, p = 1;
+    do { k++; p *= Math.random(); } while (p > L);
+    return k - 1;
+  }
+
+  function rates(team) {
+    var pg = CONFIG.PRIOR_GAMES, avg = CONFIG.LEAGUE_AVG;
+    var gp = team.gp || 0;
+    return {
+      att: (team.gf + avg * pg) / (gp + pg),   // expected scored / match
+      def: (team.ga + avg * pg) / (gp + pg)    // expected conceded / match
+    };
+  }
+
+  function simulate(model) {
+    var groups = model.groups, remaining = model.remaining;
+    var iters = CONFIG.SIM_ITERS;
+
+    // Pre-compute static rates and group membership.
+    var rateById = {};
+    groups.forEach(function (g) {
+      g.teams.forEach(function (t) { rateById[t.id] = rates(t); t.qualify = 0; });
+    });
+
+    var groupOrder = groups.map(function (g) {
+      return { name: g.name, ids: g.teams.map(function (t) { return t.id; }) };
+    });
+
+    // Mutable per-iteration accumulators.
+    var pts = {}, gf = {}, ga = {};
+    var qualifiedCount = {};
+    groups.forEach(function (g) { g.teams.forEach(function (t) { qualifiedCount[t.id] = 0; }); });
+
+    for (var it = 0; it < iters; it++) {
+      // reset to current real standings
+      groups.forEach(function (g) {
+        g.teams.forEach(function (t) { pts[t.id] = t.pts; gf[t.id] = t.gf; ga[t.id] = t.ga; });
+      });
+
+      // simulate each remaining match
+      for (var m = 0; m < remaining.length; m++) {
+        var mt = remaining[m];
+        var rh = rateById[mt.home], ra = rateById[mt.away];
+        var expH = (rh.att + ra.def) / 2;
+        var expA = (ra.att + rh.def) / 2;
+        var gh = mt.liveH + poisson(expH);
+        var gaw = mt.liveA + poisson(expA);
+        gf[mt.home] += gh; ga[mt.home] += gaw;
+        gf[mt.away] += gaw; ga[mt.away] += gh;
+        if (gh > gaw) pts[mt.home] += 3;
+        else if (gh < gaw) pts[mt.away] += 3;
+        else { pts[mt.home] += 1; pts[mt.away] += 1; }
+      }
+
+      // rank each group; collect 3rd-placed teams
+      var thirds = [];
+      for (var gi = 0; gi < groupOrder.length; gi++) {
+        var ids = groupOrder[gi].ids;
+        var sorted = ids.slice().sort(function (a, b) { return cmp(a, b, pts, gf, ga); });
+        qualifiedCount[sorted[0]]++;            // 1st advances
+        qualifiedCount[sorted[1]]++;            // 2nd advances
+        thirds.push(sorted[2]);                 // 3rd is a candidate
+      }
+      // best third-placed teams
+      thirds.sort(function (a, b) { return cmp(a, b, pts, gf, ga); });
+      for (var k = 0; k < CONFIG.BEST_THIRDS && k < thirds.length; k++) {
+        qualifiedCount[thirds[k]]++;
+      }
+    }
+
+    groups.forEach(function (g) {
+      g.teams.forEach(function (t) {
+        t.qualify = (qualifiedCount[t.id] / iters) * 100;
+      });
+    });
+  }
+
+  // sort comparator: better team first (points, GD, GF, random for exact ties)
+  function cmp(a, b, pts, gf, ga) {
+    if (pts[b] !== pts[a]) return pts[b] - pts[a];
+    var gdA = gf[a] - ga[a], gdB = gf[b] - ga[b];
+    if (gdB !== gdA) return gdB - gdA;
+    if (gf[b] !== gf[a]) return gf[b] - gf[a];
+    return Math.random() - 0.5;
+  }
+
+  // ---------- Rendering ----------
+  function qColor(p) {
+    // red (0) -> yellow (50) -> green (100)
+    var hue = Math.max(0, Math.min(120, p * 1.2));
+    return "hsl(" + hue + ", 75%, 55%)";
+  }
+
+  function esc(s) {
+    return String(s).replace(/[&<>"]/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c];
+    });
+  }
+
+  function render(model) {
+    el("simN").textContent = CONFIG.SIM_ITERS.toLocaleString();
+    var content = el("content");
+    content.className = "";
+    var html = '<div class="grid">';
+
+    model.groups.forEach(function (g) {
+      // display sort by real standings (pts, gd, gf, name)
+      var teams = g.teams.slice().sort(function (a, b) {
+        if (b.pts !== a.pts) return b.pts - a.pts;
+        if (b.gd !== a.gd) return b.gd - a.gd;
+        if (b.gf !== a.gf) return b.gf - a.gf;
+        return a.name.localeCompare(b.name);
+      });
+
+      html += '<section class="group">';
+      html += '<h2>' + esc(g.name) + '<span class="gtag">Top 2 + best 3rd advance</span></h2>';
+      html += '<table><thead><tr>' +
+              '<th class="team-h">Team</th>' +
+              '<th>P</th><th>W</th><th>D</th><th>L</th>' +
+              '<th>GD</th><th>Pts</th><th>Qualify%</th>' +
+              '</tr></thead><tbody>';
+
+      teams.forEach(function (t, i) {
+        var pos = i + 1;
+        var posClass = "pos-" + Math.min(pos, 4);
+        var live = isTeamLive(model, t.id) ? '<span class="live-badge">LIVE</span>' : "";
+        var q = t.qualify;
+        var qTxt = (q >= 99.95) ? "100" : (q <= 0.05 ? "0" : q.toFixed(1));
+        var tag = "", tagCls = "";
+        if (q >= 99.95) { tag = "Qualified"; tagCls = "in"; }
+        else if (q <= 0.05) { tag = "Eliminated"; tagCls = "out"; }
+        var logo = t.logo
+          ? '<img src="' + esc(t.logo) + '" alt="" loading="lazy" onerror="this.style.display=\'none\'">'
+          : '<span style="width:22px"></span>';
+
+        html += '<tr class="' + posClass + '">';
+        html += '<td class="team"><span class="rankno">' + pos + '</span>' + logo +
+                '<span class="tname">' + esc(t.name) + live + '</span></td>';
+        html += '<td>' + t.gp + '</td><td>' + t.w + '</td><td>' + t.d + '</td><td>' + t.l + '</td>';
+        html += '<td>' + (t.gd > 0 ? "+" + t.gd : t.gd) + '</td>';
+        html += '<td class="pts">' + t.pts + '</td>';
+        html += '<td class="qcell"><div class="qwrap">' +
+                  '<span class="qnum" style="color:' + qColor(q) + '">' + qTxt + '%</span>' +
+                  '<span class="qbar"><i style="width:' + Math.max(2, q) + '%;background:' + qColor(q) + '"></i></span>' +
+                  (tag ? '<span class="qtag ' + tagCls + '">' + tag + '</span>' : '') +
+                '</div></td>';
+        html += '</tr>';
+      });
+
+      html += '</tbody></table></section>';
+    });
+
+    html += '</div>';
+    content.innerHTML = html;
+    el("updatedPill").textContent = "Updated: " + model.updated.toLocaleTimeString();
+  }
+
+  function isTeamLive(model, id) {
+    for (var i = 0; i < model.remaining.length; i++) {
+      var r = model.remaining[i];
+      if ((r.liveH || r.liveA) && (r.home === id || r.away === id)) return true;
+    }
+    return false;
+  }
+
+  // ---------- Status + refresh loop ----------
+  function setStatus(state) {
+    var dot = el("liveDot"), label = el("liveLabel");
+    dot.className = "dot";
+    if (state === "live") { label.textContent = "LIVE — matches in progress"; }
+    else if (state === "ok") { label.textContent = "Live • auto-updating"; }
+    else if (state === "loading") { label.textContent = "Updating…"; }
+    else if (state === "err") { dot.className = "dot err"; label.textContent = "Connection issue — retrying"; }
+    else if (state === "stale") { dot.className = "dot stale"; label.textContent = "Showing last update"; }
+  }
+
+  function scheduleRefresh() {
+    nextRefreshAt = Date.now() + CONFIG.REFRESH_MS;
+    clearTimeout(refreshTimer);
+    refreshTimer = setTimeout(cycle, CONFIG.REFRESH_MS);
+  }
+
+  function tickCountdown() {
+    var s = Math.max(0, Math.round((nextRefreshAt - Date.now()) / 1000));
+    el("refreshPill").textContent = "Next refresh in " + s + "s";
+  }
+
+  function cycle() {
+    loadAll().then(scheduleRefresh);
+  }
+
+  el("refreshBtn").addEventListener("click", function () {
+    var btn = this;
+    btn.disabled = true;
+    loadAll().then(function () { scheduleRefresh(); setTimeout(function () { btn.disabled = false; }, 1200); });
+  });
+
+  // pause refresh when tab hidden; refresh immediately when it returns
+  document.addEventListener("visibilitychange", function () {
+    if (document.hidden) { clearTimeout(refreshTimer); }
+    else { cycle(); }
+  });
+
+  countdownTimer = setInterval(tickCountdown, 1000);
+  cycle();
+})();
+</script>
+</body>
+</html>
